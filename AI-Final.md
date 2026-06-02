@@ -1109,3 +1109,521 @@ Burada `n` müşahidə (sətir) sayı, `k` isə dəyişən (sütun) sayıdır.
 **Üstünlüyü:** Fərqli sayda dəyişəni olan modellər müqayisə ediləndə Adjusted R² daha ədalətlidir. Dəyişən sayı artdıqda R² süni şəkildə yüksəlir, Adjusted R² isə yalnız həqiqətən faydalı dəyişənlər əlavə olunanda artır. Model seçimində (feature selection) daha etibarlı meyardır.
 
 ---
+
+## MÖVZu 9: Klassifikasiya Alqoritması
+
+---
+
+### Sual 40 (Nəzəri)
+
+**Sual:** Logistik Reqressiya modeli hansı tip hədəf dəyişənlər üçün istifadə olunur?
+
+**Cavab:**
+
+Logistik Reqressiya **kateqorik (diskret sinifli) hədəf dəyişənləri** olan problemlər üçün istifadə olunur. Ən çox **binar (ikili) klassifikasiya** problemlərində tətbiq edilir — hədəf dəyişənin yalnız iki mümkün dəyəri olduqda.
+
+Nümunələr:
+- E-poçt: spam (1) ya da deyil (0)
+- Xəstəlik: var (1) ya da yox (0)
+- Kredit: verilsin (1) ya da verilməsin (0)
+- Müştəri: çıxacaq (1) ya da qalacaq (0) — churn prediction
+
+Adında "reqressiya" olsa da, Logistik Reqressiya əslində klassifikasiya alqoritmidir. Sigmoid funksiyasını istifadə edərək giriş dəyişənlərini 0 ilə 1 arasındakı ehtimala çevirir. Bu ehtimal müəyyən həddlə (məsələn, 0.5) müqayisə edilərək sinif qərarı verilir. Üç və ya daha çox sinif üçün "Multinomial Logistic Regression" variantı mövcuddur.
+
+---
+
+### Sual 41 (Praktiki)
+
+**Sual:** `data["y"].replace({"yes": 1, "no": 0})` nə edir?
+
+**Cavab:**
+
+Bu kod sətri `data` DataFrame-nin `"y"` sütunundakı mətn (kategorik) dəyərləri sayısal dəyərlərə çevirir:
+- `"yes"` olan hər element `1` ilə əvəzlənir
+- `"no"` olan hər element `0` ilə əvəzlənir
+
+**Vacib qeyd:** `replace()` metodu orijinal sütunu yerindəcə dəyişdirmir — yeni bir Series qaytarır. Dəyişikliyin qalıcı olması üçün nəticəni sütuna mənimsətmək lazımdır:
+
+```python
+data["y"] = data["y"].replace({"yes": 1, "no": 0})
+```
+
+Və ya `inplace=True` parametrindən istifadə etmək olar:
+
+```python
+data["y"].replace({"yes": 1, "no": 0}, inplace=True)
+```
+
+**Məqsəd:** Maşın öyrənməsi alqoritmləri `"yes"`/`"no"` kimi mətn dəyərlərlə işləyə bilmir. Bu çevirmə kateqorik hədəf dəyişənini ikili (binary) sayısal formata keçirir ki, klassifikasiya modeli öyrənə bilsin.
+
+---
+
+### Sual 42 (Nəzəri)
+
+**Sual:** IV (Information Value) metrikasının hesablanmasında məqsəd nədir?
+
+**Cavab:**
+
+**IV (Information Value — Məlumat Dəyəri):**
+
+IV bir dəyişənin hədəf dəyişəni (binary: 0/1) proqnozlaşdırmaq üçün nə qədər faydalı (discriminative power) olduğunu ölçür. Kredit skorlaması, müştəri davranışı analizi kimi binar klassifikasiya problemlərindən əvvəl hansı dəyişənlərin modellə daxil ediləcəyini seçmək üçün istifadə olunur.
+
+**Qərar meyarları:**
+
+| IV Dəyəri | Dəyişənin Gücü |
+|-----------|----------------|
+| < 0.02 | Faydasız |
+| 0.02 – 0.1 | Zəif |
+| 0.1 – 0.3 | Orta |
+| 0.3 – 0.5 | Güclü |
+| > 0.5 | Şübhəli (overfitting riski) |
+
+**Bizə hansı qərarı verməyə kömək edir:**
+IV-si çox aşağı olan dəyişənlər modeldən çıxarılır (heç bir ayırt edicilik gücü yoxdur). Çox yüksək olanlar isə məlumat sızıntısı (data leakage) ehtimalına işarə edir. IV, WoE (Weight of Evidence) ilə birlikdə istifadə olunur.
+
+---
+
+### Sual 43 (Praktiki)
+
+**Sual:** XGBClassifier kimi binar klassifikasiya alqoritmlərində `objective` parametrinin dəyəri nə olmalıdır — `reg:squarederror` yoxsa `binary:logistic`?
+
+**Cavab:**
+
+Binar klassifikasiya problemlərində `objective='binary:logistic'` istifadə olunmalıdır.
+
+**Niyə `binary:logistic`:**
+
+- `binary:logistic` hər müşahidə üçün **0 ilə 1 arasında ehtimal** hesablayır (sinif 1-ə aid olma ehtimalı)
+- Daxili itki funksiyası (loss function) ikili çarpaz entropi (binary cross-entropy) əsasındadır — bu, klassifikasiya problemlərinin əsas optimallaşdırma meyarıdır
+- Nəticəni 0.5 həddilə müqayisə edərək sinif (0 ya da 1) qərarı vermək mümkündür
+
+**Niyə `reg:squarederror` uyğun deyil:**
+
+`reg:squarederror` (kvadrat xəta) **reqressiya** problemləri üçün nəzərdə tutulub — kəsilməz dəyər proqnozlaşdırmaq üçün. Klassifikasiya kontekstindən istifadə etsək, model 0/1 sinif etiketlərini kəsilməz ədədlər kimi proqnozlaşdırmağa çalışar, bu isə məntiqi cəhətdən yanlış və performans baxımından zəif nəticə verər.
+
+---
+
+### Sual 44 (Praktiki)
+
+**Sual:** Naive Bayes (GaussianNB) klassifikatoru hansı əsas ehtimal fərziyyəsinə əsaslanır?
+
+**Cavab:**
+
+**Naive Bayes-in əsas fərziyyəsi: Şərti Müstəqillik (Conditional Independence)**
+
+Naive Bayes hesab edir ki, hər bir dəyişən (feature) digərlərindən **tamamilə müstəqildir** — verilmiş sinif daxilində bir dəyişənin dəyəri digər dəyişənin dəyərinə heç bir təsir göstərmir.
+
+Riyazi ifadəsi: `P(x₁, x₂, ..., xₙ | y) = P(x₁|y) × P(x₂|y) × ... × P(xₙ|y)`
+
+Bu fərziyyə çox vaxt gerçəkliyə uyğun gəlmir — məsələn, evdə otaq sayı ilə evin ölçüsü bir-birilə korrelyasiya edir. Buna baxmayaraq, praktikada Naive Bayes xüsusilə mətn klassifikasiyasında (spam filtri, sentiment analizi) çox yaxşı nəticələr verir, sadəliyi və sürəti ilə ön plana çıxır.
+
+**GaussianNB** xüsusən kəsilməz sayısal dəyişənlər üçün istifadə olunur və hər dəyişənin Normal (Gauss) paylanmasına tabe olduğunu güman edir.
+
+---
+
+## MÖVZu 10: Klasterləşdirmə Alqoritması
+
+---
+
+### Sual 45 (Nəzəri)
+
+**Sual:** K-Means hansı növ Maşın Öyrənməsi metoduna aiddir? Supervised vs Unsupervised fərqi nədir?
+
+**Cavab:**
+
+K-Means **Nəzarətsiz Öyrənmə (Unsupervised Learning)** metoduna aiddir.
+
+**Supervised (Nəzarətli) Öyrənmə:**
+Modelin öyrədilməsi üçün `(X, y)` cütlükləri verilir — hər giriş üçün doğru cavab (etiket) bilinir. Model bu etiketlərə əsasən proqnozlaşdırma öyrənir. Nümunə: e-poçtların spam/normal etiketlənib modellə öyrədilməsi.
+
+**Unsupervised (Nəzarətsiz) Öyrənmə:**
+Yalnız giriş məlumatları (`X`) verilir, heç bir etiket yoxdur. Model məlumatlar arasındakı gizli strukturları, qruplaşmaları, nümunələri **özü kəşf edir**. K-Means bu məlumatları ən oxşar olanlara görə `k` ədəd qrupa (klastər) ayırır.
+
+**K-Means işləmə prinsipi:**
+1. `k` ədəd mərkəz (centroid) təsadüfi seçilir
+2. Hər nöqtə özünə ən yaxın mərkəzin klasterinə qoşulur
+3. Hər klasterin yeni mərkəzi hesablanır (elementlərin ortası)
+4. Mərkəzlər daha dəyişməyənə qədər 2-3 addımlar təkrarlanır
+
+---
+
+### Sual 46 (Nəzəri)
+
+**Sual:** K-Means-də optimal klaster sayını müəyyən etmək üçün Elbow Method istifadə olunur. WCSS nədir? "Dirsək" nöqtəsi nə bildirir?
+
+**Cavab:**
+
+**WCSS (Within-Cluster Sum of Squares — Klaster Daxili Kvadratların Cəmi):**
+
+Hər klasterdəki bütün nöqtələrin öz klaster mərkəzinə olan məsafələrinin karələrinin cəmidir. WCSS klasterin "sıxlığını" ölçür — WCSS nə qədər kiçikdirsə, nöqtələr mərkəzə bir o qədər yaxındır, klaster bir o qədər kompaktdır.
+
+**Elbow Metodu:**
+
+`k = 1, 2, 3, ... n` üçün K-Means tətbiq edilir, hər `k` üçün WCSS hesablanır. `k`-ya qarşı WCSS qrafiki çəkilir:
+- Əvvəlcə k artdıqca WCSS kəskin düşür
+- Müəyyən nöqtədən sonra azalma sürəti kəskin enir — qrafik "dirsək" şəklini alır
+- Bu "dirsək" (kink/elbow) nöqtəsi **optimal klaster sayını** göstərir
+
+**Dirsək nöqtəsinin mənası:**
+
+Bu nöqtədən sonra əlavə klaster əlavə etmək WCSS-ni mənalı şəkildə azaltmır — yəni əlavə klasterlər artıq izahedici deyil, sadəcə datanı lazımsız olaraq parçalayır. Dirsək nöqtəsi deyir: "bu `k` dəyərindən sonra əldə etdiklərin xərcdən az dəyərlidir."
+
+---
+
+## MÖVZu 11: Süni Neyron Şəbəkələri və Dərin Öyrənmə
+
+---
+
+### Sual 47 (Praktiki)
+
+**Sual:** Scikit-learn Pipeline-da həm sayısal miqyaslama, həm də kateqorik kodlaşdırmanı eyni anda aparmaq üçün hansı obyekt istifadə olunur?
+
+**Cavab:**
+
+`ColumnTransformer` obyekti istifadə olunur. Bu, müxtəlif sütun qruplarına müxtəlif transformasiyalar tətbiq etməyə imkan verən güclü alətdir.
+
+```python
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.pipeline import Pipeline
+
+preprocessor = ColumnTransformer(transformers=[
+    ('num', StandardScaler(), sayısal_sütunlar),
+    ('cat', OneHotEncoder(), kateqorik_sütunlar)
+])
+
+pipeline = Pipeline(steps=[
+    ('preprocessor', preprocessor),
+    ('model', LinearRegression())
+])
+```
+
+**`ColumnTransformer`-ın üstünlükləri:**
+- Sayısal sütunlara `StandardScaler` (miqyaslama), kateqorik sütunlara `OneHotEncoder` (kodlaşdırma) eyni anda tətbiq olunur
+- Test datasına eyni transformasiyanın tətbiq edilməsi avtomatik təmin edilir (`fit_transform` vs `transform` ayrımı düzgün idarə olunur)
+- Məlumat sızıntısının (data leakage) qarşısı alınır
+- Cross-validation ilə birlikdə düzgün işləyir
+
+---
+
+### Sual 48 (Praktiki)
+
+**Sual:** `max_depth` çox böyük seçildikdə Qərar Ağacında hansı problem yaranır?
+
+**Cavab:**
+
+**Həddindən artıq Uyğunlaşma (Overfitting) problemi yaranır.**
+
+`max_depth` parametri Qərar Ağacının neçə səviyyəyə qədər böyüyə biləcəyini məhdudlaşdırır. Bu parametr çox böyük seçildikdə (ya da məhdudlaşdırılmadıqda) ağac özünü **tam olaraq** öyrətmə məlumatlarına uyğunlaşdırır.
+
+**Nə baş verir:**
+
+Ağac öyrətmə datasındakı hər nüansı, hətta təsadüfi gürültünü (noise) belə öyrənir. Öyrətmə setindəki performans demək olar ki mükəmməl olur (R² ≈ 1 ya da accuracy ≈ 100%), lakin model daha əvvəl görmədyi yeni məlumatlar üzərindəki performansı (test seti) kəskin şəkildə pis olur.
+
+**Fəsadları:**
+
+Model realitəni deyil, öyrətmə datasının xüsusiyyətlərini öyrəndiyindən praktikada işə yaramır. Genelləşdirmə (generalization) qabiliyyəti zəifdir. Buna görə `max_depth`, `min_samples_split`, `min_samples_leaf` kimi parametrlərlə ağacı "budamaq" (pruning) lazımdır.
+
+---
+
+### Sual 49 (Nəzəri)
+
+**Sual:** Klassifikasiya və Reqressiya arasındakı əsas fərq nədir?
+
+**Cavab:**
+
+**Reqressiya (Regression):**
+
+Proqnozlaşdırılan nəticə **kəsilməz (continuous) sayısal dəyərdir**. Model bir ədəd çıxarır ki, bu ədəd müəyyən aralıqda istənilən qiymət ala bilər.
+
+Nümunələr: ev qiymətinin proqnozu (450,000 manat), sabahın temperaturu (27.3°C), şirkətin gəliri (2.4 milyon dollar).
+
+Qiymətləndirmə metriklərı: MSE, RMSE, MAE, R².
+
+**Klassifikasiya (Classification):**
+
+Proqnozlaşdırılan nəticə **diskret kateqoriyadır (sinifdir)**. Model bir sinif etiketi çıxarır.
+
+Nümunələr: müştərinin çıxıb-çıxmaması (çıxar/qalmaz), e-poçtun növü (spam/normal), şəkildəki heyvan (it/pişik/quş).
+
+Qiymətləndirmə metriklərı: Accuracy, Precision, Recall, F1-Score, ROC AUC.
+
+**Əsas fərq:** Reqressiyada "nə qədər?" sualı cavablandırılır; Klassifikasiyada "hansı sinifdə?" sualı cavablandırılır. Hədəf dəyişənin tipi (kəsilməz vs. diskret) hansı növün seçiləcəyini müəyyən edir.
+
+---
+
+## MÖVZu 12: Cədvəl Data üçün Dərin Öyrənmə
+
+---
+
+### Sual 50 (Nəzəri)
+
+**Sual:** Klassifikasiya modelinin ehtimallarını 0/1 siniflərinə ayırmaq üçün Optimal Hədd (Threshold) necə müəyyənləşdirilir?
+
+**Cavab:**
+
+Klassifikasiya modeli hər müşahidə üçün `[0, 1]` aralığında bir ehtimal çıxarır. Bu ehtimalı konkret sinifə (0 ya da 1) çevirmək üçün bir hədd (threshold) seçilir. Ənənəvi olaraq `0.5` hədd istifadə olunur, lakin bu hər zaman optimal deyil.
+
+**Optimal Hədd Necə Seçilir:**
+
+Həddin seçimini iş probleminin prioritetləri müəyyən edir:
+
+- **ROC Əyrisinin Yönü:** Müxtəlif həddlər üçün TPR (True Positive Rate) vs FPR (False Positive Rate) qrafiki çəkilir. Hənd "sol yuxarı"ya ən yaxın olan nöqtə optimal hesab olunur.
+
+- **Precision-Recall Balansı:** Yanlış müsbət (False Positive) ilə yanlış mənfi (False Negative) arasındakı xərcləri balanslaşdırmaq:
+  - Tibbi diaqnostikada: Xəstəni qaçırmamaq (yüksək Recall) daha vacibdir → hədd aşağı saxlanılır
+  - Spam filtrdə: Vacib e-poçtu spam kimi göstərməmək (yüksək Precision) vacibdir → hədd yüksək saxlanılır
+
+- **F1-Score Maksimizasiyası:** Precision və Recall-un harmonik ortasını maksimuma çatdıran hədd seçilir
+
+- **Youden İndeksi:** `Sensitivity + Specificity − 1` ifadəsini maksimuma çatdıran hədd
+
+---
+
+### Sual 51 (Nəzəri)
+
+**Sual:** Balanced Accuracy hansı iki göstəricinin ortasıdır?
+
+**Cavab:**
+
+**Balanced Accuracy (Balanslaşdırılmış Dəqiqlik):**
+
+```
+Balanced Accuracy = (Sensitivity + Specificity) / 2
+```
+
+- **Sensitivity (Həssaslıq / Recall):** Həqiqi müsbət halların nə qədərinin düzgün müsbət olaraq təsnif edildiyi: `TP / (TP + FN)`
+
+- **Specificity (Spesifiklik):** Həqiqi mənfi halların nə qədərinin düzgün mənfi olaraq təsnif edildiyi: `TN / (TN + FP)`
+
+**Niyə Balanced Accuracy istifadə olunur:**
+
+Adi accuracy balanssız məlumatlarda (imbalanced data) aldadıcıdır. Məsələn, 95% sağlam, 5% xəstə olan datasetdə model hər zaman "sağlam" deyərsə 95% accuracy əldə edir, lakin bir xəstəni belə aşkar etməmiş olur. Balanced Accuracy hər iki sinfin dəqiqliyini bərabər çəkilə ilə hesabladığından bu aldatmanın qarşısını alır.
+
+---
+
+### Sual 52 (Praktiki)
+
+**Sual:** Random Forest və XGBoost-dan hansı ağacları ardıcıl olaraq (əvvəlki ağacın səhvini sonrakı düzəldəcək şəkildə) öyrədir?
+
+**Cavab:**
+
+**XGBoost** ağacları ardıcıl (sequential) olaraq öyrədir.
+
+Bu yanaşma **Boosting** (gücləndirilmə) metoduna əsaslanır:
+1. Birinci ağac öyrədilir
+2. Birinci ağacın **qalıq xətaları** (residuals) hesablanır
+3. İkinci ağac bu xətaları proqnozlaşdırmağa yönəlik öyrədilir
+4. Hər yeni ağac əvvəlki ağacların səhvlərini azaltmağa çalışır
+5. Bütün ağacların proqnozları toplanır
+
+**Random Forest** isə ağacları **paralel (müstəqil)** olaraq öyrədir (Bagging metodu). Hər ağac məlumatın təsadüfi alt nümunəsindən müstəqil şəkildə öyrənir, ağaclar bir-birindən xəbərsizdir. Son qərar bütün ağacların səs çoxluğu ilə verilir.
+
+---
+
+### Sual 53 (Praktiki)
+
+**Sual:** Random Forest (Bagging) vs XGBoost (Boosting) — ağacları necə formalaşdırır?
+
+**Cavab:**
+
+**Random Forest — Bagging (Bootstrap Aggregating):**
+
+- Hər ağac üçün orijinal datadan **yerinə qoyulmalı nümunə (bootstrap sample)** götürülür
+- Hər bölünmə nöqtəsindəki sütunlar **təsadüfi alt çoxluqdan** seçilir
+- Bütün ağaclar **eyni vaxtda, müstəqil** olaraq öyrədilir
+- Reqressiyada ortalaması, klassifikasiyada səs çoxluğu alınır
+- Dispersiyanı (variance) azaltmaq üçün nəzərdə tutulub — fərdi ağacların aşırı uyğunlaşmasını qrupla keçersiz edir
+
+**XGBoost — Gradient Boosting:**
+
+- Ağaclar **ardıcıl** olaraq öyrədilir — hər yeni ağac əvvəlkinin qalıq xətasını öyrənir
+- **Qradient azalması (gradient descent)** metodunu itki funksiyasına tətbiq edərək hər addımda itki azaldılır
+- Regularizasiya (L1, L2) daxil edərək overfitting-ə qarşı mübarizə aparır
+- Yanlılığı (bias) azaltmaq üçün nəzərdə tutulub — yavaş-yavaş daha yaxşı proqnoz əldə edilir
+- Adətən daha yüksək proqnoz dəqiqliyi verir, lakin daha uzun öyrənmə vaxtı tələb edir
+
+---
+
+### Sual 54 (Praktiki)
+
+**Sual:** ROC AUC nəyi ölçür? Mükəmməl modeldə bu göstəricinin maksimal dəyəri neçədir?
+
+**Cavab:**
+
+**ROC AUC (Area Under the ROC Curve — ROC Əyrisinin Altındakı Sahə):**
+
+ROC (Receiver Operating Characteristic) əyrisi fərqli hədd dəyərləri üçün `True Positive Rate (Sensitivity)` vs `False Positive Rate (1-Specificity)` cütlüklərini qrafik olaraq göstərir.
+
+**AUC nəyi ölçür:**
+
+Modelin **müsbət və mənfi sinifləri bir-birindən ayırd etmə qabiliyyətini** ölçür. Daha konkret: təsadüfi seçilmiş bir müsbət nümunə ilə təsadüfi seçilmiş bir mənfi nümunəni müqayisə etdikdə modelin müsbət nümunəyə daha yüksək skor verəcəyi ehtimalını göstərir.
+
+**Dəyər aralığı:**
+
+| AUC | Şərh |
+|-----|------|
+| 1.0 | Mükəmməl model |
+| 0.9 – 1.0 | Əla |
+| 0.8 – 0.9 | Yaxşı |
+| 0.7 – 0.8 | Orta |
+| 0.5 | Təsadüfi proqnoz (pulsuz atma) |
+| < 0.5 | Tərsə işləyir |
+
+**Maksimal dəyər: `AUC = 1.0`** — model bütün müsbət nümunələrə mənfilərdən daha yüksək skor verir, siniflər mükəmməl ayrılır.
+
+---
+
+## MÖVZu 13: Şəkil Aşkarlanması üçün CNN Alqoritması
+
+---
+
+### Sual 55 (Nəzəri)
+
+**Sual:** Qarışıqlıq Matrisi (Confusion Matrix) nədir? Hansı dörd kateqoriyanı ehtiva edir?
+
+**Cavab:**
+
+**Qarışıqlıq Matrisi:**
+
+Klassifikasiya modelinin proqnozlarını həqiqi dəyərlərlə müqayisə edərək modelin hər sinifdə nə qədər düzgün, nə qədər yanlış proqnoz verdiyini cədvəl formasında göstərən qiymətləndirmə alətidir.
+
+**Dörd əsas kateqoriya (binar klassifikasiya üçün):**
+
+**TP (True Positive — Həqiqi Müsbət):** Model "müsbət" dedi, həqiqətən də müsbətdir. Düzgün müsbət proqnoz. ✓
+
+**TN (True Negative — Həqiqi Mənfi):** Model "mənfi" dedi, həqiqətən də mənfidir. Düzgün mənfi proqnoz. ✓
+
+**FP (False Positive — Yanlış Müsbət / Tip I Xəta):** Model "müsbət" dedi, amma həqiqətdə mənfidir. "Yanlış həyəcan" (false alarm). ✗
+
+**FN (False Negative — Yanlış Mənfi / Tip II Xəta):** Model "mənfi" dedi, amma həqiqətdə müsbətdir. "Buraxılmış aşkarlama" (missed detection). ✗
+
+Bu dörd dəyər Accuracy, Precision, Recall, F1-Score kimi bütün klassifikasiya metriklərinin hesablanmasının əsasını təşkil edir.
+
+---
+
+### Sual 56 (Praktiki)
+
+**Sual:** SMOTE alqoritminin əsas məqsədi və iş prinsipi nədir?
+
+**Cavab:**
+
+**SMOTE (Synthetic Minority Oversampling Technique):**
+
+Balanssız məlumat dəstlərindəki **azlıq sinifini (minority class) süni nümunələrlə artırmaq** üçün istifadə olunan metoddur. Məqsəd: model öyrənilməzdən əvvəl sinifləri balanslaşdırmaq.
+
+**İş prinsipi:**
+
+SMOTE sadəcə mövcud nümunələri kopyalamır — **yeni, süni nümunələr yaradır**:
+
+1. Azlıq sinfindən bir nöqtə seçilir
+2. Onun `k` ən yaxın qonşusu (k-nearest neighbors) tapılır
+3. Seçilmiş nöqtə ilə onun qonşularından biri arasındakı **xətti interpolasiya** yolu ilə yeni süni nümunə yaradılır
+4. Yeni nümunə iki nöqtə arasındakı xətt üzərindəki təsadüfi bir mövqedə yerləşir
+
+**Niyə SMOTE istifadə olunur:**
+
+Sadə çoxaltma (oversampling) eyni nümunəni dəfələrlə kopyalayır — model ezber öyrənir (overfitting). SMOTE isə yeni, müxtəlif nümunələr yaratdığından model azlıq sinifinin ümumi xüsusiyyətlərini öyrənir. Nəticədə Recall artır, balanssız siniflər arasında performans bərabərləşir.
+
+---
+
+### Sual 57 (Praktiki)
+
+**Sual:** `train_test_split(X, y, test_size=0.2)` — `test_size=0.2` nə deməkdir?
+
+**Cavab:**
+
+`test_size=0.2` parametri məlumatın **20%-nin test seti, qalan 80%-nin öyrətmə (train) seti** kimi ayrılmasını bildirir.
+
+**Funksiyası:**
+
+`train_test_split` məlumatı iki hissəyə bölərek modelin:
+- **Öyrənməsi** üçün `X_train`, `y_train` (80%)
+- **Qiymətləndirilməsi** üçün `X_test`, `y_test` (20%) yaradır
+
+**Niyə test seti ayrılır:**
+
+Model öyrənməsi üçün istifadə edilən məlumatlar üzərindəki performans həqiqi performansı əks etdirmir — model bu məlumatları artıq görüb. Əsl test, modelin daha əvvəl görmediyi yeni məlumatlar üzərindəki davranışıdır. Test seti bu məqsəd üçün öyrənmədən tamamilə kənarda saxlanılır.
+
+Bölmə ənənəvi olaraq 80/20 və ya 70/30 nisbətlərindən istifadə edilir. `random_state` parametri bölmənin təkrarlanabilir olmasını təmin edir.
+
+---
+
+## MÖVZu 14: Təbii Dil Analizi üçün NLP Alqoritması
+
+---
+
+### Sual 58 (Praktiki)
+
+**Sual:** Bayesian Optimization metodunun ənənəvi Grid Search-dən daha səmərəli işləməsinin əsas səbəbini izah edin.
+
+**Cavab:**
+
+**Grid Search-in problemi:**
+
+Grid Search öncədən müəyyən edilmiş bütün hiperparametr kombinasiyalarını **birbaşa sınayır**. Məsələn, 3 parametr üçün hər biri 10 dəyər olarsa, 10³ = 1000 kombinasiya sınanır. Bu çox vaxt aparan, hesablama baxımından bahalı (brute-force) yanaşmadır. Keçmiş sınaqların nəticəsindən öyrənmir.
+
+**Bayesian Optimization-ın üstünlüyü:**
+
+Bayesian Optimization keçmiş sınaqlardan **öyrənərək** növbəti sınanacaq hiperparametr dəyərini ağıllı şəkildə seçir:
+
+1. **Əvvəlki sınaqlar əsasında probabilistik model (surrogate model)** qurulur — hansı hiperparametr dəyərlərinin yaxşı nəticə verəcəyi proqnozlaşdırılır
+2. **Əldə etmə funksiyası (acquisition function)** növbəti sınanacaq nöqtəni müəyyən edir: ya ən çox proqnozlaşdırılan yaxşı nəticəyə sahib nöqtəni sına (exploitation), ya da qeyri-müəyyənliyin yüksək olduğu bölgəni araşdır (exploration)
+3. Hər yeni sınaq surrogate modeli yeniləyir
+
+**Praktik nəticə:** Grid Search 1000 kombinasiya sınayarkən Bayesian Optimization çox vaxt 50-100 sınaqla eyni (bəzən daha yaxşı) nəticəyə nail olur. Bu, hesablama vaxtını kəskin azaldır.
+
+---
+
+## MÖVZu 15: Zaman Seriyası
+
+---
+
+### Sual 59 (Praktiki)
+
+**Sual:** RMSE MAE-dən xeyli böyük çıxarsa, bu bizə nə siqnal verir?
+
+**Cavab:**
+
+**MAE (Mean Absolute Error):** Bütün xətaların mütləq dəyərlərinin ortasıdır. Hər xəta bərabər çəkilə malikdir.
+
+**RMSE (Root Mean Squared Error):** Xətaların karəsinin ortasının kvadrat kökü. Böyük xətalar karəyə alındığı üçün xüsusilə **ağır cəzalandırılır**.
+
+**RMSE >> MAE olduqda siqnal:**
+
+Bu fərq məlumat bazasında **böyük kənarlaşma xətaları (outlier errors)** olduğuna işarə edir — yəni model bəzi müşahidələri çox kəskin şəkildə yanlış proqnozlaşdırır.
+
+**Konkret izah:** 90 müşahidədə model ±5 vahid xəta edirsə, 10 müşahidədə ±100 vahid xəta edir. MAE bu 10 böyük xətanı digərləri ilə eyni çəkidə tutur, buna görə nisbətən aşağı çıxır. RMSE isə bu 10 xətanı karəyə alaraq 10,000 edir — nəticə kəskin şəkildə yüksəlir.
+
+**Analitik qərar:** RMSE-MAE fərqi böyük olduqda modelin bəzi spesifik bölgələrdə (məsələn, bayram günlərindəki zaman seriyası anomaliyaları, iqtisadi krizis dövrlərindəki qiymət sıçrayışları) çox zəif performans göstərdiyini araşdırmaq lazımdır.
+
+---
+
+### Sual 60 (Praktiki)
+
+**Sual:** Maşın Öyrənməsindəki "Hyperparameter Tuning" prosesinin məqsədi nədir? Bayesian Optimization bu prosesdə nə iş görür?
+
+**Cavab:**
+
+**Hyperparameter Tuning (Hiperparametrlərin Tənzimlənməsi):**
+
+Maşın öyrənməsi modelinin öyrənmə prosesini idarə edən, lakin **özü məlumatdan öyrənilməyən** parametrlərin (hiperparametrlərin) optimallaşdırılması prosesidir.
+
+Nümunələr: Random Forest-də ağac sayı (`n_estimators`), XGBoost-da öyrənmə sürəti (`learning_rate`), neyron şəbəkəsindəki qat sayı, K-Means-dəki `k` dəyəri.
+
+**Məqsəd:** Modelin validasiya setindəki performansını maksimuma çatdıran hiperparametr kombinasiyasını tapmaq — yəni öyrənmə prosesini ən yaxşı şəkildə konfiqurasiya etmək.
+
+**Bayesian Optimization bu prosesdə nə edir:**
+
+Hiperparametr fəzasını ardıcıl olaraq araşdıran **adaptiv axtarış** strategiyasıdır:
+
+- Keçmiş sınaqlardan qurulmuş probabilistik model (Gaussian Process) əsasında növbəti sınanacaq hiperparametr dəyərini seçir
+- Artıq yaxşı nəticə verən bölgəni daha dərindən araşdırır (exploitation)
+- Hələ sınanmamış bölgəni araşdırır (exploration)
+- Hər sınaqdan sonra modeli yeniləyərək getdikcə daha ağıllı qərarlara gəlir
+
+Grid Search-in xaotik, bütün kombinasiyaları sınamaq yanaşmasından fərqli olaraq, Bayesian Optimization az sınaqla yüksək performanslı hiperparametr dəstini tapır.
+
+---
+
+*© 2026 ADNSU — İPFS-B10 Süni İntellekt kursu üzrə final imtahan hazırlıq materialı*
